@@ -32,12 +32,12 @@
     <script src="assets/js/d3-selection.v0.6.min.js"></script>
     <script src="assets/js/d3-axis.v0.2.min.js"></script>
 
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6SXXMsBLi_723s_LntKMQ_-bjyZE3fKU&libraries=geometry" async defer></script>
+    <!-- <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA_qQOv9Dxfglt16Ni2-mq5adQaDdGkoYo" type="text/javascript"></script> -->
+    <!-- <script src="http://maps.google.com/maps/api/js?v=AIzaSyA_qQOv9Dxfglt16Ni2-mq5adQaDdGkoYo&amp;sensor=false"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/2.13.1/OpenLayers.js"></script>
-    </script>
-    <script src="assets/js/popper.min.js">
-    </script>
-    <script src="assets/js/bootstrap.min.js">
-    </script>
+    <script src="assets/js/popper.min.js"></script>
+    <script src="assets/js/bootstrap.min.js"></script>
 
 
 
@@ -142,10 +142,25 @@
                 ]
             });
 
-            var ol_wms = new OpenLayers.Layer.OSM();
-            ol_wms.setZIndex(1);
-            map.addLayers([ol_wms]);
-            map.setCenter(new OpenLayers.LonLat(123.074654, 0.593317).transform("EPSG:4326", "EPSG:900913"), 14);
+            // var ol_wms = ;
+            map.addLayers([
+                new OpenLayers.Layer.OSM(
+                    "Open Street Map"
+                ),
+                new OpenLayers.Layer.Google(
+                    "Google Streets", // the default
+                    {numZoomLevels: 20}
+                ),
+                new OpenLayers.Layer.Google(
+                    "Google Hybrid",
+                    {type: google.maps.MapTypeId.HYBRID, numZoomLevels: 20}
+                ),
+                new OpenLayers.Layer.Google(
+                    "Google Satellite",
+                    {type: google.maps.MapTypeId.SATELLITE, numZoomLevels: 22}
+                )
+                ]);
+            map.setCenter(new OpenLayers.LonLat(123.074654, 0.593317).transform("EPSG:4326", "EPSG:900913"), 15);
 
             d3.csv("data/haha.csv", function(collection){
                 collection.forEach(function(d) {
@@ -164,7 +179,6 @@
                 var overlay = new OpenLayers.Layer.Vector("Desa");
                 // Add the container when the overlay is added to the map.
                 overlay.afterAdd = function () {
-
                     //get the vector layer div element
                     var div = d3.selectAll("#" + overlay.div.id);
                     div.selectAll("svg").remove();
